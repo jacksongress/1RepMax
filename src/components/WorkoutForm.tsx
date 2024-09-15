@@ -150,6 +150,11 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
     onWorkoutEnd();
   };
 
+  // Move the deleteExercise function here, inside the component
+  const deleteExercise = (exerciseId: number) => {
+    setExercises(exercises.filter(exercise => exercise.id !== exerciseId));
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-6">
       <div className="flex justify-between items-center bg-white rounded-lg shadow-md p-4">
@@ -206,14 +211,24 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
         <Card key={exercise.id} className="overflow-hidden">
           <CardHeader className="bg-sky-100 py-3 px-4 flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-semibold text-sky-800">{exercise.name}</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleExerciseCollapse(exercise.id)}
-              className="p-1"
-            >
-              {collapsedExercises[exercise.id] ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleExerciseCollapse(exercise.id)}
+                className="p-1"
+              >
+                {collapsedExercises[exercise.id] ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => deleteExercise(exercise.id)}
+                className="p-1"
+              >
+                <Trash2 className="h-5 w-5 text-red-500" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className={`p-4 ${collapsedExercises[exercise.id] ? 'hidden' : ''}`}>
             <div className="space-y-4">
