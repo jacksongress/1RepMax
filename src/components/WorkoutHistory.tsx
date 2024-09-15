@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getDocuments, deleteDocument } from '../lib/firebase/firebaseUtils';
 import { useAuth } from '../lib/hooks/useAuth';
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ export default function WorkoutHistory({ onBack }: WorkoutHistoryProps) {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  const fetchWorkouts = async () => {
+  const fetchWorkouts = useCallback(async () => {
     if (user) {
       setIsLoading(true);
       try {
@@ -33,11 +33,11 @@ export default function WorkoutHistory({ onBack }: WorkoutHistoryProps) {
         setIsLoading(false);
       }
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchWorkouts();
-  }, [user]);
+  }, [fetchWorkouts]);
 
   const handleDeleteWorkout = async (workoutId: string) => {
     if (confirm("Are you sure you want to delete this workout? This action cannot be undone.")) {

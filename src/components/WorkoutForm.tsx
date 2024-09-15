@@ -238,18 +238,22 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
                     <div className="text-base sm:text-lg font-bold text-sky-600">#{index + 1}</div>
                   </div>
                   <Input 
-                    type="text" 
+                    type="number" 
+                    inputMode="numeric" 
+                    pattern="[0-9]*"
                     placeholder="lbs" 
                     value={set.weight} 
                     onChange={(e) => updateSet(exercise.id, set.id, 'weight', e.target.value)}
-                    className="w-16 sm:w-20 h-8 sm:h-9 text-xs sm:text-sm text-center font-semibold"
+                    className="w-16 sm:w-20 h-8 sm:h-9 text-base sm:text-base text-center font-semibold"
                   />
                   <Input 
-                    type="text" 
+                    type="number" 
+                    inputMode="numeric" 
+                    pattern="[0-9]*"
                     placeholder="reps" 
                     value={set.reps} 
                     onChange={(e) => updateSet(exercise.id, set.id, 'reps', e.target.value)}
-                    className="w-16 sm:w-20 h-8 sm:h-9 text-xs sm:text-sm text-center font-semibold"
+                    className="w-16 sm:w-20 h-8 sm:h-9 text-base sm:text-base text-center font-semibold"
                   />
                   <Button 
                     variant="outline"
