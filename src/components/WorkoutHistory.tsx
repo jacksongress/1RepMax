@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getDocuments, deleteDocument } from '../lib/firebase/firebaseUtils';
 import { useAuth } from '../lib/hooks/useAuth';
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Workout {
   id: string;
@@ -19,13 +19,24 @@ export default function WorkoutHistory({ onBack }: WorkoutHistoryProps) {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
+  const [collapsedWorkouts, setCollapsedWorkouts] = useState<{[key: string]: boolean}>({});
 
   const fetchWorkouts = useCallback(async () => {
     if (user) {
       setIsLoading(true);
       try {
         const fetchedWorkouts = await getDocuments('workouts') as Workout[];
-        setWorkouts(fetchedWorkouts.filter((workout) => workout.userId === user.uid));
+        const userWorkouts = fetchedWorkouts
+          .filter((workout) => workout.userId === user.uid)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date, newest first
+        setWorkouts(userWorkouts);
+        
+        // Initialize all workouts as collapsed except the most recent one
+        const initialCollapsedState = userWorkouts.reduce((acc, workout, index) => {
+          acc[workout.id] = index !== 0; // Only the first workout (index 0) is uncollapsed
+          return acc;
+        }, {} as {[key: string]: boolean});
+        setCollapsedWorkouts(initialCollapsedState);
       } catch (error) {
         console.error('Error fetching workouts:', error);
         setWorkouts([]);
@@ -51,6 +62,13 @@ export default function WorkoutHistory({ onBack }: WorkoutHistoryProps) {
     }
   };
 
+  const toggleWorkoutCollapse = (workoutId: string) => {
+    setCollapsedWorkouts(prev => ({
+      ...prev,
+      [workoutId]: !prev[workoutId]
+    }));
+  };
+
   if (isLoading) {
     return <div className="text-center">Loading workouts...</div>;
   }
@@ -72,25 +90,41 @@ export default function WorkoutHistory({ onBack }: WorkoutHistoryProps) {
         ) : (
           workouts.map((workout) => (
             <div key={workout.id} className="mb-4 p-4 bg-gray-50 rounded shadow relative">
-              <Button
-                onClick={() => handleDeleteWorkout(workout.id)}
-                variant="outline"
-                size="sm"
-                className="absolute top-2 right-2 text-red-500 hover:bg-red-100"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-              <h3 className="text-xl font-semibold">{new Date(workout.date).toLocaleDateString()}</h3>
-              {workout.exercises?.map((exercise, index) => (
-                <div key={index} className="mt-2">
-                  <h4 className="font-medium">{exercise.name}</h4>
-                  {exercise.sets.map((set, setIndex) => (
-                    <p key={setIndex}>
-                      Set {setIndex + 1}: {set.reps} reps @ {set.weight} lbs
-                    </p>
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold">{new Date(workout.date).toLocaleDateString()}</h3>
+                <div className="flex items-center">
+                  <Button
+                    onClick={() => toggleWorkoutCollapse(workout.id)}
+                    variant="outline"
+                    size="sm"
+                    className="mr-2"
+                  >
+                    {collapsedWorkouts[workout.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    onClick={() => handleDeleteWorkout(workout.id)}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-500 hover:bg-red-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              {!collapsedWorkouts[workout.id] && (
+                <div className="mt-2">
+                  {workout.exercises?.map((exercise, index) => (
+                    <div key={index} className="mt-2">
+                      <h4 className="font-medium">{exercise.name}</h4>
+                      {exercise.sets.map((set, setIndex) => (
+                        <p key={setIndex}>
+                          Set {setIndex + 1}: {set.reps} reps @ {set.weight} lbs
+                        </p>
+                      ))}
+                    </div>
                   ))}
                 </div>
-              ))}
+              )}
             </div>
           ))
         )}
