@@ -3,6 +3,7 @@ import { getDocuments, deleteDocument } from '../lib/firebase/firebaseUtils';
 import { useAuth } from '../lib/hooks/useAuth';
 import { Button } from "@/components/ui/button";
 import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import BackButton from './BackButton';
 
 interface Workout {
   id: string;
@@ -74,61 +75,54 @@ export default function WorkoutHistory({ onBack }: WorkoutHistoryProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Workout History</h2>
-          <Button
-            onClick={onBack}
-            className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded transition duration-150 ease-in-out"
-          >
-            Back to Home
-          </Button>
-        </div>
-        {workouts.length === 0 ? (
-          <div className="text-center">No workouts found. Start your first workout!</div>
-        ) : (
-          workouts.map((workout) => (
-            <div key={workout.id} className="mb-4 p-4 bg-gray-50 rounded shadow relative">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold">{new Date(workout.date).toLocaleDateString()}</h3>
-                <div className="flex items-center">
-                  <Button
-                    onClick={() => toggleWorkoutCollapse(workout.id)}
-                    variant="outline"
-                    size="sm"
-                    className="mr-2"
-                  >
-                    {collapsedWorkouts[workout.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    onClick={() => handleDeleteWorkout(workout.id)}
-                    variant="outline"
-                    size="sm"
-                    className="text-red-500 hover:bg-red-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              {!collapsedWorkouts[workout.id] && (
-                <div className="mt-2">
-                  {workout.exercises?.map((exercise, index) => (
-                    <div key={index} className="mt-2">
-                      <h4 className="font-medium">{exercise.name}</h4>
-                      {exercise.sets.map((set, setIndex) => (
-                        <p key={setIndex}>
-                          Set {setIndex + 1}: {set.reps} reps @ {set.weight} lbs
-                        </p>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))
-        )}
+    <div className="max-w-4xl mx-auto space-y-4 p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <BackButton onBack={onBack} />
+        <h2 className="text-2xl font-bold text-sky-600">Workout History</h2>
       </div>
+      {workouts.length === 0 ? (
+        <div className="text-center">No workouts found. Start your first workout!</div>
+      ) : (
+        workouts.map((workout) => (
+          <div key={workout.id} className="mb-4 p-4 bg-gray-50 rounded shadow relative">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-semibold">{new Date(workout.date).toLocaleDateString()}</h3>
+              <div className="flex items-center">
+                <Button
+                  onClick={() => toggleWorkoutCollapse(workout.id)}
+                  variant="outline"
+                  size="sm"
+                  className="mr-2"
+                >
+                  {collapsedWorkouts[workout.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                </Button>
+                <Button
+                  onClick={() => handleDeleteWorkout(workout.id)}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-500 hover:bg-red-100"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {!collapsedWorkouts[workout.id] && (
+              <div className="mt-2">
+                {workout.exercises?.map((exercise, index) => (
+                  <div key={index} className="mt-2">
+                    <h4 className="font-medium">{exercise.name}</h4>
+                    {exercise.sets.map((set, setIndex) => (
+                      <p key={setIndex}>
+                        Set {setIndex + 1}: {set.reps} reps @ {set.weight} lbs
+                      </p>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))
+      )}
     </div>
   );
 }

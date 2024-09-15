@@ -8,6 +8,7 @@ import { useAuth } from '../lib/hooks/useAuth';
 import WorkoutSummary from './WorkoutSummary';
 import { addWorkout } from '../lib/firebase/firebaseUtils';
 import { addCustomExercise, getCustomExercises } from '../lib/firebase/firebaseUtils';
+import { saveWorkoutTemplate, WorkoutTemplate } from '../lib/firebase/firebaseUtils';
 
 type Set = {
   id: number;
@@ -27,7 +28,12 @@ type ExerciseHistory = {
   sets: { weight: number; reps: number }[];
 };
 
-export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void }) {
+type WorkoutFormProps = {
+  onWorkoutEnd: () => void;
+  initialTemplate: WorkoutTemplate | null;
+};
+
+export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFormProps) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -44,6 +50,14 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
   const [exerciseHistory, setExerciseHistory] = useState<{ [key: string]: ExerciseHistory[] }>({});
   const [showHistoryFor, setShowHistoryFor] = useState<string | null>(null);
   const [historyDisplayLimit, setHistoryDisplayLimit] = useState<{ [key: string]: number }>({});
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+
+  useEffect(() => {
+    if (initialTemplate) {
+      setExercises(initialTemplate.exercises.map(name => ({ id: Date.now(), name, sets: [] })));
+    }
+  }, [initialTemplate]);
 
   useEffect(() => {
     setStartTime(Date.now());
@@ -193,14 +207,41 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
           })),
           duration: finalDuration,
         };
-        console.log("Attempting to save workout:", workoutData);
+        console.log("Attempting to save workout:", JSON.stringify(workoutData, null, 2));
         const workoutId = await addWorkout(user.uid, workoutData);
         console.log("Workout posted successfully with ID:", workoutId);
         setShowSummary(true);
         setStartTime(null); // Stop the timer
+
+        if (!initialTemplate) {
+          setShowSaveTemplateModal(true);
+        } else {
+          onWorkoutEnd();
+        }
       } catch (error) {
         console.error("Error posting workout:", error);
+        if (error instanceof Error) {
+          console.error("Error message:", error.message);
+          console.error("Error stack:", error.stack);
+        }
+        // Show a more detailed error message to the user
+        alert(`There was an error saving your workout. Error details: ${error}`);
       }
+    } else {
+      console.error("No user logged in");
+      alert("You must be logged in to save a workout.");
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (user && templateName.trim()) {
+      const template: WorkoutTemplate = {
+        name: templateName,
+        exercises: exercises.map(e => e.name)
+      };
+      await saveWorkoutTemplate(user.uid, template);
+      setShowSaveTemplateModal(false);
+      onWorkoutEnd();
     }
   };
 
@@ -452,6 +493,35 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
           exercises={exercises}
           onClose={closeSummary}
         />
+      )}
+
+      {showSaveTemplateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4">Save as Template</h3>
+            <input
+              type="text"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="Template Name"
+              className="w-full p-2 border rounded mb-4"
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowSaveTemplateModal(false)}
+                className="px-4 py-2 bg-gray-200 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTemplate}
+                className="px-4 py-2 bg-sky-500 text-white rounded"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

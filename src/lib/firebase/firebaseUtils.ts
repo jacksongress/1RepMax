@@ -99,6 +99,9 @@ export const addWorkout = async (userId: string, workoutData: any) => {
   try {
     console.log("Adding workout for user:", userId);
     const userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) {
+      throw new Error(`User document not found for userId: ${userId}`);
+    }
     const userEmail = userDoc.data()?.email;
     console.log("User email:", userEmail);
 
@@ -109,18 +112,18 @@ export const addWorkout = async (userId: string, workoutData: any) => {
       timestamp: serverTimestamp(),
       date: new Date().toISOString(),
     };
-    console.log("Workout data to add:", workoutToAdd);
+    console.log("Workout data to add:", JSON.stringify(workoutToAdd, null, 2));
 
     const workoutRef = await addDoc(collection(db, 'workouts'), workoutToAdd);
     console.log("Workout added with ID:", workoutRef.id);
 
-    // Verify the workout was added
-    const addedWorkout = await getDoc(workoutRef);
-    console.log("Added workout data:", addedWorkout.data());
-
     return workoutRef.id;
   } catch (error) {
     console.error("Error adding workout:", error);
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     throw error;
   }
 };
@@ -254,6 +257,49 @@ export const getExerciseHistory = async (userId: string, exerciseName: string) =
     return exerciseHistory;
   } catch (error) {
     console.error("Error getting exercise history:", error);
+    throw error;
+  }
+};
+
+// Add these new types and functions
+
+export type WorkoutTemplate = {
+  id?: string;
+  name: string;
+  exercises: string[];
+};
+
+export const saveWorkoutTemplate = async (userId: string, template: WorkoutTemplate) => {
+  try {
+    const templateRef = await addDoc(collection(db, 'users', userId, 'templates'), template);
+    console.log(`Template ${template.name} saved successfully with ID: ${templateRef.id}`);
+    return templateRef.id;
+  } catch (error) {
+    console.error("Error saving workout template:", error);
+    throw error;
+  }
+};
+
+export const getWorkoutTemplates = async (userId: string) => {
+  try {
+    const templatesSnapshot = await getDocs(collection(db, 'users', userId, 'templates'));
+    return templatesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as WorkoutTemplate));
+  } catch (error) {
+    console.error("Error getting workout templates:", error);
+    throw error;
+  }
+};
+
+// Add this new function
+export const deleteWorkoutTemplate = async (userId: string, templateId: string) => {
+  try {
+    await deleteDoc(doc(db, 'users', userId, 'templates', templateId));
+    console.log(`Template with ID ${templateId} deleted successfully for user ${userId}`);
+  } catch (error) {
+    console.error("Error deleting workout template:", error);
     throw error;
   }
 };

@@ -4,6 +4,7 @@ import { getFriendsWorkouts } from '../lib/firebase/firebaseUtils';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import BackButton from './BackButton';
 
 type Workout = {
   id: string;
@@ -70,10 +71,10 @@ export default function SocialFeed({ onBack }: { onBack: () => void }) {
   if (error) return <div>{error}</div>;
 
   return (
-    <div className="space-y-4 p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-        <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-0">Social Feed</h2>
-        <Button onClick={onBack} variant="outline" className="w-full sm:w-auto">Back</Button>
+    <div className="max-w-4xl mx-auto space-y-4 p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <BackButton onBack={onBack} />
+        <h2 className="text-2xl font-bold text-sky-600">Social Feed</h2>
       </div>
       {workouts.map((workout) => (
         <Card key={workout.id} className="overflow-hidden">
