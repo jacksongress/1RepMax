@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Check, Trash2 } from "lucide-react";
+import { Plus, Check, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { addDocument } from '../lib/firebase/firebaseUtils';
 import { useAuth } from '../lib/hooks/useAuth';
 import WorkoutSummary from './WorkoutSummary';
@@ -30,6 +30,7 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
   const [time, setTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [customExercises, setCustomExercises] = useState<string[]>([]);
+  const [collapsedExercises, setCollapsedExercises] = useState<{[key: number]: boolean}>({});
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
@@ -127,6 +128,13 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
     }
   };
 
+  const toggleExerciseCollapse = (exerciseId: number) => {
+    setCollapsedExercises(prev => ({
+      ...prev,
+      [exerciseId]: !prev[exerciseId]
+    }));
+  };
+
   // Remove or comment out this function
   // const endWorkout = async () => { ... };
 
@@ -196,10 +204,18 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
       {/* List of exercises */}
       {exercises.map(exercise => (
         <Card key={exercise.id} className="overflow-hidden">
-          <CardHeader className="bg-sky-100 py-3 px-4">
+          <CardHeader className="bg-sky-100 py-3 px-4 flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-semibold text-sky-800">{exercise.name}</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleExerciseCollapse(exercise.id)}
+              className="p-1"
+            >
+              {collapsedExercises[exercise.id] ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+            </Button>
           </CardHeader>
-          <CardContent className="p-4">
+          <CardContent className={`p-4 ${collapsedExercises[exercise.id] ? 'hidden' : ''}`}>
             <div className="space-y-4">
               {exercise.sets.map((set, index) => (
                 <div 
