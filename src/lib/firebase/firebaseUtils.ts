@@ -245,7 +245,7 @@ export const getExerciseHistory = async (userId: string, exerciseName: string) =
 
     for (const doc of workoutsSnapshot.docs) {
       const workoutData = doc.data();
-      const exerciseData = workoutData.exercises.find(e => e.name === exerciseName);
+      const exerciseData = workoutData.exercises.find((e: { name: string }) => e.name === exerciseName);
       if (exerciseData) {
         exerciseHistory.push({
           date: workoutData.timestamp.toDate(),

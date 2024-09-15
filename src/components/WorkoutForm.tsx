@@ -1,14 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Check, Trash2, ChevronDown, ChevronUp, Search, BarChart2 } from "lucide-react";
-import { addDocument, getExerciseHistory } from '../lib/firebase/firebaseUtils';
+import { addDocument, getExerciseHistory, addWorkout, addCustomExercise, getCustomExercises, saveWorkoutTemplate, WorkoutTemplate } from '../lib/firebase/firebaseUtils';
 import { useAuth } from '../lib/hooks/useAuth';
 import WorkoutSummary from './WorkoutSummary';
-import { addWorkout } from '../lib/firebase/firebaseUtils';
-import { addCustomExercise, getCustomExercises } from '../lib/firebase/firebaseUtils';
-import { saveWorkoutTemplate, WorkoutTemplate } from '../lib/firebase/firebaseUtils';
 
 type Set = {
   id: number;
@@ -53,6 +50,10 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
 
+  const defaultExercises = useMemo(() => [
+    "Squat", "Bench Press", "Deadlift", "Overhead Press", "Barbell Row", "Pull-up"
+  ], []);
+
   useEffect(() => {
     if (initialTemplate) {
       setExercises(initialTemplate.exercises.map(name => ({ id: Date.now() + Math.random(), name, sets: [] })));
@@ -60,24 +61,20 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
   }, [initialTemplate]);
 
   useEffect(() => {
-    setStartTime(Date.now());
+    const now = Date.now();
+    setStartTime(now);
     const intervalId = setInterval(() => {
-      if (startTime) {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        setElapsedTime(elapsed);
-      }
+      setElapsedTime(Math.floor((Date.now() - now) / 1000));
     }, 1000);
 
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [startTime]);
+    return () => clearInterval(intervalId);
+  }, []);
 
-  const formatTime = (seconds: number) => {
+  const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
   const loadCustomExercises = useCallback(async () => {
     if (user) {
@@ -98,14 +95,8 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const defaultExercises = [
-    "Squat", "Bench Press", "Deadlift", "Overhead Press", "Barbell Row", "Pull-up"
-  ];
 
   const handleSearch = useCallback((term: string) => {
     setSearchTerm(term);
@@ -118,7 +109,7 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
       );
       setFilteredExercises(filtered);
     }
-  }, [customExercises]);
+  }, [customExercises, defaultExercises]);
 
   const handleInputFocus = () => {
     setIsSearching(true);
@@ -134,11 +125,10 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
   };
 
   const addExercise = async () => {
-    console.log("Adding exercise:", selectedExercise); // Debug log
+    console.log("Adding exercise:", selectedExercise);
     if (selectedExercise.trim()) {
       setExercises(prev => [...prev, { id: Date.now(), name: selectedExercise, sets: [] }]);
       
-      // Check if it's a custom exercise
       if (!defaultExercises.includes(selectedExercise) && !customExercises.includes(selectedExercise)) {
         setCustomExercises(prev => [...prev, selectedExercise]);
         if (user) {
@@ -151,7 +141,7 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
         }
       }
       
-      console.log("Exercise added:", selectedExercise); // Debug log
+      console.log("Exercise added:", selectedExercise);
       setSearchTerm('');
       setSelectedExercise('');
     }
@@ -193,7 +183,7 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
     ));
   };
 
-  const handleEndWorkout = async () => {
+  const handleEndWorkout = useCallback(async () => {
     if (user) {
       try {
         const finalDuration = elapsedTime;
@@ -208,11 +198,11 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
           })),
           duration: finalDuration,
         };
-        console.log("Attempting to save workout:", JSON.stringify(workoutData, null, 2));
+        console.log('Attempting to save workout:', JSON.stringify(workoutData, null, 2));
         const workoutId = await addWorkout(user.uid, workoutData);
-        console.log("Workout posted successfully with ID:", workoutId);
+        console.log('Workout posted successfully with ID:', workoutId);
         setShowSummary(true);
-        setStartTime(null); // Stop the timer
+        setStartTime(null);
 
         if (!initialTemplate) {
           setShowSaveTemplateModal(true);
@@ -220,19 +210,14 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
           onWorkoutEnd();
         }
       } catch (error) {
-        console.error("Error posting workout:", error);
-        if (error instanceof Error) {
-          console.error("Error message:", error.message);
-          console.error("Error stack:", error.stack);
-        }
-        // Show a more detailed error message to the user
+        console.error('Error posting workout:', error);
         alert(`There was an error saving your workout. Error details: ${error}`);
       }
     } else {
-      console.error("No user logged in");
-      alert("You must be logged in to save a workout.");
+      console.error('No user logged in');
+      alert('You must be logged in to save a workout.');
     }
-  };
+  }, [user, elapsedTime, exercises, initialTemplate, onWorkoutEnd]);
 
   const handleSaveTemplate = async () => {
     if (user && templateName.trim()) {
@@ -283,7 +268,6 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
       if (!exerciseHistory[exerciseName]) {
         fetchExerciseHistory(exerciseName);
       }
-      // Initialize display limit for this exercise
       setHistoryDisplayLimit(prev => ({ ...prev, [exerciseName]: 5 }));
     }
   };
@@ -307,7 +291,6 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
         </div>
       </div>
 
-      {/* Add Exercise section */}
       <Card className="bg-white shadow-md overflow-visible">
         <CardContent className="p-4">
           <div className="relative flex items-center" ref={searchRef}>
@@ -350,7 +333,7 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
                     className="px-4 py-2 text-gray-500 cursor-pointer hover:bg-sky-50"
                     onClick={() => handleExerciseSelect(searchTerm)}
                   >
-                    No matches. Click to add "{searchTerm}" as a new exercise.
+                    No matches. Click to add &quot;{searchTerm}&quot; as a new exercise.
                   </div>
                 )}
               </div>
@@ -359,7 +342,6 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
         </CardContent>
       </Card>
 
-      {/* List of exercises */}
       {exercises.map(exercise => (
         <Card key={exercise.id} className="overflow-hidden">
           <CardHeader className="bg-sky-100 py-2 sm:py-3 px-3 sm:px-4 flex flex-row items-center justify-between">

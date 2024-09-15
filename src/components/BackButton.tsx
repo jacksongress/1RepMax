@@ -9,7 +9,7 @@ export default function BackButton({ onBack }: BackButtonProps) {
   return (
     <Button
       onClick={onBack}
-      variant="ghost"
+      variant="outline"
       size="sm"
       className="flex items-center text-sky-600 hover:text-sky-700 p-0"
     >
