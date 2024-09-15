@@ -27,22 +27,24 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
   const [selectedExercise, setSelectedExercise] = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const { user } = useAuth();
-  const [time, setTime] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const [customExercises, setCustomExercises] = useState<string[]>([]);
   const [collapsedExercises, setCollapsedExercises] = useState<{[key: number]: boolean}>({});
 
   useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setTime(prevTime => prevTime + 1);
+    setStartTime(Date.now());
+    const intervalId = setInterval(() => {
+      if (startTime) {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        setElapsedTime(elapsed);
+      }
     }, 1000);
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      clearInterval(intervalId);
     };
-  }, []);
+  }, [startTime]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -116,7 +118,7 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
               reps: parseInt(set.reps) || 0,
             }))
           })),
-          duration: time,
+          duration: elapsedTime,
         };
         console.log("Attempting to save workout:", workoutData);
         const workoutId = await addWorkout(user.uid, workoutData);
@@ -138,7 +140,7 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
   const closeSummary = () => {
     setShowSummary(false);
     setExercises([]);
-    setTime(0);
+    setElapsedTime(0);
     onWorkoutEnd();
   };
 
@@ -147,11 +149,11 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 p-4 sm:p-6"> {/* Reduced padding on mobile */}
+    <div className="max-w-4xl mx-auto space-y-4 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white rounded-lg shadow-md p-4">
         <h2 className="text-xl sm:text-2xl font-bold text-sky-600 mb-2 sm:mb-0">Workout Session</h2>
         <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-          <span className="text-lg sm:text-xl font-semibold text-sky-600 flex-grow sm:flex-grow-0">{formatTime(time)}</span>
+          <span className="text-lg sm:text-xl font-semibold text-sky-600 flex-grow sm:flex-grow-0">{formatTime(elapsedTime)}</span>
           <Button onClick={handleEndWorkout} variant="destructive" className="w-full sm:w-auto">
             End Workout
           </Button>
@@ -279,7 +281,7 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
       {showSummary && (
         <WorkoutSummary
           workoutNumber={exercises.length}
-          duration={time}
+          duration={elapsedTime}
           exercises={exercises}
           onClose={closeSummary}
         />
