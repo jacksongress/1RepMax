@@ -62,7 +62,7 @@ export default function HomePage() {
           {activeComponent === 'templateSelection' && (
             <TemplateSelection 
               onTemplateSelect={handleTemplateSelect} 
-              onBack={() => setActiveComponent('home')}  // Add this line
+              onBack={() => setActiveComponent('home')}
             />
           )}
           {activeComponent === 'workout' && (

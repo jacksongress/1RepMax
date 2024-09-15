@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getWorkoutTemplates, deleteWorkoutTemplate, WorkoutTemplate } from '../lib/firebase/firebaseUtils';
@@ -15,7 +15,7 @@ export default function TemplateSelection({ onTemplateSelect, onBack }: Template
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const { user } = useAuth();
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     if (user) {
       try {
         const fetchedTemplates = await getWorkoutTemplates(user.uid);
@@ -24,11 +24,11 @@ export default function TemplateSelection({ onTemplateSelect, onBack }: Template
         console.error("Error loading templates:", error);
       }
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     loadTemplates();
-  }, [user]);
+  }, [loadTemplates]);
 
   const handleDeleteTemplate = async (templateId: string) => {
     if (user && templateId) {

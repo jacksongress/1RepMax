@@ -55,7 +55,7 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
 
   useEffect(() => {
     if (initialTemplate) {
-      setExercises(initialTemplate.exercises.map(name => ({ id: Date.now(), name, sets: [] })));
+      setExercises(initialTemplate.exercises.map(name => ({ id: Date.now() + Math.random(), name, sets: [] })));
     }
   }, [initialTemplate]);
 
@@ -79,15 +79,16 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  useEffect(() => {
-    const loadCustomExercises = async () => {
-      if (user) {
-        const exercises = await getCustomExercises(user.uid);
-        setCustomExercises(exercises);
-      }
-    };
-    loadCustomExercises();
+  const loadCustomExercises = useCallback(async () => {
+    if (user) {
+      const exercises = await getCustomExercises(user.uid);
+      setCustomExercises(exercises);
+    }
   }, [user]);
+
+  useEffect(() => {
+    loadCustomExercises();
+  }, [loadCustomExercises]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -260,7 +261,7 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
   };
 
   const deleteExercise = (exerciseId: number) => {
-    setExercises(exercises.filter(exercise => exercise.id !== exerciseId));
+    setExercises(prevExercises => prevExercises.filter(exercise => exercise.id !== exerciseId));
   };
 
   const fetchExerciseHistory = async (exerciseName: string) => {
