@@ -31,6 +31,7 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
   const [elapsedTime, setElapsedTime] = useState(0);
   const [customExercises, setCustomExercises] = useState<string[]>([]);
   const [collapsedExercises, setCollapsedExercises] = useState<{[key: number]: boolean}>({});
+  const [finalDuration, setFinalDuration] = useState(0);
 
   useEffect(() => {
     setStartTime(Date.now());
@@ -110,6 +111,8 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
   const handleEndWorkout = async () => {
     if (user) {
       try {
+        const finalDuration = elapsedTime;
+        setFinalDuration(finalDuration);
         const workoutData = {
           exercises: exercises.map(exercise => ({
             name: exercise.name,
@@ -118,12 +121,13 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
               reps: parseInt(set.reps) || 0,
             }))
           })),
-          duration: elapsedTime,
+          duration: finalDuration,
         };
         console.log("Attempting to save workout:", workoutData);
         const workoutId = await addWorkout(user.uid, workoutData);
         console.log("Workout posted successfully with ID:", workoutId);
         setShowSummary(true);
+        setStartTime(null); // Stop the timer
       } catch (error) {
         console.error("Error posting workout:", error);
       }
@@ -281,7 +285,7 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
       {showSummary && (
         <WorkoutSummary
           workoutNumber={exercises.length}
-          duration={elapsedTime}
+          duration={finalDuration}
           exercises={exercises}
           onClose={closeSummary}
         />
