@@ -50,7 +50,7 @@ export default function SocialFeed({ onBack }: { onBack: () => void }) {
       }
     };
     fetchWorkouts();
-  }, [user]);
+  }, [user]); // Add user to the dependency array
 
   const toggleWorkoutCollapse = (workoutId: string) => {
     setCollapsedWorkouts(prev => ({
