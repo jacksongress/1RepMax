@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import SignInWithGoogle from "./SignInWithGoogle";
 import SignUpForm from "./SignUpForm";
 import SignInForm from "./SignInForm";
 
@@ -25,17 +24,7 @@ export default function LandingPage() {
               Sign Up
             </button>
           </div>
-          {isSignUp ? (
-            <SignUpForm />
-          ) : (
-            <>
-              <SignInForm />
-              <div className="mt-4 flex flex-col items-center">
-                <p className="text-center text-sm text-gray-600 mb-2">Or sign in with</p>
-                <SignInWithGoogle />
-              </div>
-            </>
-          )}
+          {isSignUp ? <SignUpForm /> : <SignInForm />}
         </div>
       </div>
     </div>

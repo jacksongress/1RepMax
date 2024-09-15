@@ -1,8 +1,8 @@
-import { auth, db, storage } from "./firebase";
+import { auth, db } from "./firebase";
+// Remove the storage import
+// import { storage } from "./firebase";
 import {
   signOut,
-  GoogleAuthProvider,
-  signInWithPopup,
 } from "firebase/auth";
 import {
   collection,
@@ -23,22 +23,11 @@ import {
   Timestamp,
   serverTimestamp
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+// import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 
 // Auth functions
 export const logoutUser = () => signOut(auth);
-
-export const signInWithGoogle = async () => {
-  const provider = new GoogleAuthProvider();
-  try {
-    const result = await signInWithPopup(auth, provider);
-    return result.user;
-  } catch (error) {
-    console.error("Error signing in with Google", error);
-    throw error;
-  }
-};
 
 // Firestore functions
 export const addDocument = (collectionName: string, data: any) =>
@@ -57,97 +46,6 @@ export const updateDocument = (collectionName: string, id: string, data: any) =>
 
 export const deleteDocument = (collectionName: string, id: string) =>
   deleteDoc(doc(db, collectionName, id));
-
-// Storage functions
-export const uploadFile = async (file: File, path: string) => {
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
-};
-
-// Friend functions
-export const addFriend = async (userId: string, friendEmail: string) => {
-  console.log(`Attempting to add friend: ${friendEmail} for user: ${userId}`);
-  await ensureUserDocument(userId);
-  const userRef = doc(db, 'users', userId);
-  
-  try {
-    // Get the friend's user document
-    const friendQuery = query(collection(db, 'users'), where('email', '==', friendEmail));
-    const friendSnapshot = await getDocs(friendQuery);
-    
-    if (friendSnapshot.empty) {
-      throw new Error('Friend user not found');
-    }
-    
-    const friendDoc = friendSnapshot.docs[0];
-    const friendId = friendDoc.id;
-    const friendRef = doc(db, 'users', friendId);
-
-    // Update the current user's friends list
-    await updateDoc(userRef, {
-      friends: arrayUnion(friendEmail)
-    });
-
-    // Update the friend's friends list with the current user's email
-    const currentUserDoc = await getDoc(userRef);
-    const currentUserEmail = currentUserDoc.data()?.email;
-    
-    if (currentUserEmail) {
-      await updateDoc(friendRef, {
-        friends: arrayUnion(currentUserEmail)
-      });
-    }
-
-    console.log(`Successfully added bidirectional friendship between ${userId} and ${friendId}`);
-  } catch (error) {
-    console.error("Error adding friend:", error);
-    throw error;
-  }
-};
-
-export const getFriends = async (userId: string) => {
-  const userDoc = await getDoc(doc(db, 'users', userId));
-  return userDoc.data()?.friends || [];
-};
-
-export const removeFriend = async (userId: string, friendEmail: string) => {
-  const userRef = doc(db, 'users', userId);
-  
-  try {
-    // Get the friend's user document
-    const friendQuery = query(collection(db, 'users'), where('email', '==', friendEmail));
-    const friendSnapshot = await getDocs(friendQuery);
-    
-    if (friendSnapshot.empty) {
-      throw new Error('Friend user not found');
-    }
-    
-    const friendDoc = friendSnapshot.docs[0];
-    const friendId = friendDoc.id;
-    const friendRef = doc(db, 'users', friendId);
-
-    // Remove friend from current user's list
-    await updateDoc(userRef, {
-      friends: arrayRemove(friendEmail)
-    });
-
-    // Remove current user from friend's list
-    const currentUserDoc = await getDoc(userRef);
-    const currentUserEmail = currentUserDoc.data()?.email;
-    
-    if (currentUserEmail) {
-      await updateDoc(friendRef, {
-        friends: arrayRemove(currentUserEmail)
-      });
-    }
-
-    console.log(`Successfully removed bidirectional friendship between ${userId} and ${friendId}`);
-  } catch (error) {
-    console.error("Error removing friend:", error);
-    throw error;
-  }
-};
 
 // User document functions
 export const createUserDocument = async (userId: string, additionalData?: { email?: string | null }) => {
@@ -265,6 +163,43 @@ export const getFriendsWorkouts = async (userId: string) => {
     return allWorkouts;
   } catch (error) {
     console.error("Error getting friends' workouts: ", error);
+    throw error;
+  }
+};
+
+// Add these new functions
+export const getFriends = async (userId: string) => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    return userDoc.data()?.friends || [];
+  } catch (error) {
+    console.error("Error getting friends:", error);
+    throw error;
+  }
+};
+
+export const addFriend = async (userId: string, friendEmail: string) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      friends: arrayUnion(friendEmail)
+    });
+    console.log(`Friend ${friendEmail} added successfully for user ${userId}`);
+  } catch (error) {
+    console.error("Error adding friend:", error);
+    throw error;
+  }
+};
+
+export const removeFriend = async (userId: string, friendEmail: string) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      friends: arrayRemove(friendEmail)
+    });
+    console.log(`Friend ${friendEmail} removed successfully for user ${userId}`);
+  } catch (error) {
+    console.error("Error removing friend:", error);
     throw error;
   }
 };
