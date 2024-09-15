@@ -150,28 +150,30 @@ export const removeFriend = async (userId: string, friendEmail: string) => {
 };
 
 // User document functions
-export const createUserDocument = async (user: any) => {
-  if (!user) return;
+export const createUserDocument = async (userId: string, additionalData?: { email?: string | null }) => {
+  if (!userId) return;
 
-  console.log("Attempting to create user document for:", user.uid);
-  const userRef = doc(db, 'users', user.uid);
+  console.log("Attempting to create user document for:", userId);
+  const userRef = doc(db, 'users', userId);
   const snapshot = await getDoc(userRef);
 
   if (!snapshot.exists()) {
-    const { email } = user;
+    const { email } = additionalData || {};
+    const createdAt = new Date();
+
     try {
       await setDoc(userRef, {
         email,
-        friends: [],
-        createdAt: new Date(),
+        createdAt,
+        ...additionalData
       });
-      console.log("User document created successfully for:", user.uid);
+      console.log("User document created successfully");
     } catch (error) {
-      console.error("Error creating user document:", error);
+      console.error("Error creating user document", error);
     }
-  } else {
-    console.log("User document already exists for:", user.uid);
   }
+
+  return userRef;
 };
 
 export const ensureUserDocument = async (userId: string) => {
