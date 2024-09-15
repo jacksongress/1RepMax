@@ -204,3 +204,26 @@ export const removeFriend = async (userId: string, friendEmail: string) => {
   }
 };
 
+export const addCustomExercise = async (userId: string, exerciseName: string) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      customExercises: arrayUnion(exerciseName)
+    });
+    console.log(`Custom exercise ${exerciseName} added successfully for user ${userId}`);
+  } catch (error) {
+    console.error("Error adding custom exercise:", error);
+    throw error;
+  }
+};
+
+export const getCustomExercises = async (userId: string) => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    return userDoc.data()?.customExercises || [];
+  } catch (error) {
+    console.error("Error getting custom exercises:", error);
+    throw error;
+  }
+};
+

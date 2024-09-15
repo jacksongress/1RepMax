@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Check, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Check, Trash2, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { addDocument } from '../lib/firebase/firebaseUtils';
 import { useAuth } from '../lib/hooks/useAuth';
 import WorkoutSummary from './WorkoutSummary';
 import { addWorkout } from '../lib/firebase/firebaseUtils';
+import { addCustomExercise, getCustomExercises } from '../lib/firebase/firebaseUtils';
 
 type Set = {
   id: number;
@@ -23,8 +24,10 @@ type Exercise = {
 
 export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void }) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [newExerciseName, setNewExerciseName] = useState('');
-  const [selectedExercise, setSelectedExercise] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
+  const searchRef = useRef<HTMLDivElement>(null);
   const [showSummary, setShowSummary] = useState(false);
   const { user } = useAuth();
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -32,6 +35,7 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
   const [customExercises, setCustomExercises] = useState<string[]>([]);
   const [collapsedExercises, setCollapsedExercises] = useState<{[key: number]: boolean}>({});
   const [finalDuration, setFinalDuration] = useState(0);
+  const [selectedExercise, setSelectedExercise] = useState('');
 
   useEffect(() => {
     setStartTime(Date.now());
@@ -53,21 +57,79 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleExerciseSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedExercise(e.target.value);
-    if (e.target.value !== 'other') {
-      setNewExerciseName('');
+  useEffect(() => {
+    const loadCustomExercises = async () => {
+      if (user) {
+        const exercises = await getCustomExercises(user.uid);
+        setCustomExercises(exercises);
+      }
+    };
+    loadCustomExercises();
+  }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearching(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const defaultExercises = [
+    "Squat", "Bench Press", "Deadlift", "Overhead Press", "Barbell Row", "Pull-up"
+  ];
+
+  const handleSearch = useCallback((term: string) => {
+    setSearchTerm(term);
+    setSelectedExercise(term);
+    if (term.trim() === '') {
+      setFilteredExercises([]);
+    } else {
+      const filtered = [...defaultExercises, ...customExercises].filter(
+        exercise => exercise.toLowerCase().includes(term.toLowerCase())
+      );
+      setFilteredExercises(filtered);
+    }
+  }, [customExercises]);
+
+  const handleInputFocus = () => {
+    setIsSearching(true);
+    if (searchTerm.trim() === '') {
+      setFilteredExercises([]);
     }
   };
 
-  const addExercise = () => {
-    let exerciseName = selectedExercise === 'other' ? newExerciseName : selectedExercise;
-    if (exerciseName.trim()) {
-      setExercises([...exercises, { id: Date.now(), name: exerciseName, sets: [] }]);
-      if (selectedExercise === 'other' && !customExercises.includes(newExerciseName)) {
-        setCustomExercises([...customExercises, newExerciseName]);
+  const handleExerciseSelect = (exercise: string) => {
+    setSelectedExercise(exercise);
+    setSearchTerm(exercise);
+    setIsSearching(false);
+  };
+
+  const addExercise = async () => {
+    console.log("Adding exercise:", selectedExercise); // Debug log
+    if (selectedExercise.trim()) {
+      setExercises(prev => [...prev, { id: Date.now(), name: selectedExercise, sets: [] }]);
+      
+      // Check if it's a custom exercise
+      if (!defaultExercises.includes(selectedExercise) && !customExercises.includes(selectedExercise)) {
+        setCustomExercises(prev => [...prev, selectedExercise]);
+        if (user) {
+          try {
+            await addCustomExercise(user.uid, selectedExercise);
+            console.log(`Custom exercise "${selectedExercise}" added to database`);
+          } catch (error) {
+            console.error("Error adding custom exercise to database:", error);
+          }
+        }
       }
-      setNewExerciseName('');
+      
+      console.log("Exercise added:", selectedExercise); // Debug log
+      setSearchTerm('');
       setSelectedExercise('');
     }
   };
@@ -165,41 +227,54 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
       </div>
 
       {/* Add Exercise section */}
-      <Card className="bg-white shadow-md overflow-hidden">
-        <CardContent className="p-4 space-y-3">
-          <select
-            value={selectedExercise}
-            onChange={handleExerciseSelect}
-            className="w-full bg-white text-sky-900 h-12 border border-sky-200 rounded-md px-3 text-sm sm:text-base"
-          >
-            <option value="">Select an exercise</option>
-            <option value="Squat">Squat</option>
-            <option value="Bench Press">Bench Press</option>
-            <option value="Deadlift">Deadlift</option>
-            <option value="Overhead Press">Overhead Press</option>
-            <option value="Barbell Row">Barbell Row</option>
-            <option value="Pull-up">Pull-up</option>
-            {customExercises.map((exercise) => (
-              <option key={exercise} value={exercise}>{exercise}</option>
-            ))}
-            <option value="other">Other</option>
-          </select>
-          {selectedExercise === 'other' && (
-            <Input 
-              type="text" 
-              placeholder="Enter custom exercise name" 
-              value={newExerciseName}
-              onChange={(e) => setNewExerciseName(e.target.value)}
-              className="w-full h-12 border border-sky-200 text-sm sm:text-base"
-            />
-          )}
-          <Button 
-            onClick={addExercise} 
-            className="w-full bg-sky-500 text-white hover:bg-sky-600 h-12 text-sm sm:text-base"
-            disabled={!selectedExercise || (selectedExercise === 'other' && !newExerciseName.trim())}
-          >
-            Add Exercise
-          </Button>
+      <Card className="bg-white shadow-md overflow-visible">
+        <CardContent className="p-4">
+          <div className="relative flex items-center" ref={searchRef}>
+            <div className="flex-grow relative">
+              <Input
+                type="text"
+                placeholder="Search or add exercise"
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={handleInputFocus}
+                className="w-full h-12 border border-sky-200 text-sm sm:text-base pr-10"
+              />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
+            <Button 
+              onClick={addExercise} 
+              className="ml-2 bg-sky-500 text-white hover:bg-sky-600 h-12 w-12 flex items-center justify-center rounded-md"
+              disabled={!selectedExercise.trim()}
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+            {isSearching && (
+              <div className="absolute z-50 w-full left-0 mt-1 top-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                {searchTerm.trim() === '' ? (
+                  <div className="px-4 py-2 text-gray-500">
+                    No matches. Add a custom exercise.
+                  </div>
+                ) : filteredExercises.length > 0 ? (
+                  filteredExercises.map((exercise, index) => (
+                    <div
+                      key={index}
+                      className="px-4 py-2 hover:bg-sky-50 cursor-pointer"
+                      onClick={() => handleExerciseSelect(exercise)}
+                    >
+                      {exercise}
+                    </div>
+                  ))
+                ) : (
+                  <div 
+                    className="px-4 py-2 text-gray-500 cursor-pointer hover:bg-sky-50"
+                    onClick={() => handleExerciseSelect(searchTerm)}
+                  >
+                    No matches. Click to add "{searchTerm}" as a new exercise.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
