@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../lib/hooks/useAuth';
 import { getFriendsWorkouts } from '../lib/firebase/firebaseUtils';
 import { Button } from "@/components/ui/button";
@@ -27,30 +27,31 @@ export default function SocialFeed({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
   const [collapsedWorkouts, setCollapsedWorkouts] = useState<{[key: string]: boolean}>({});
 
-  useEffect(() => {
-    const fetchWorkouts = async () => {
-      if (user) {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const fetchedWorkouts = await getFriendsWorkouts(user.uid);
-          setWorkouts(fetchedWorkouts as Workout[]);
-          // Initialize all workouts as collapsed
-          const initialCollapsedState = fetchedWorkouts.reduce((acc, workout) => {
-            acc[workout.id] = true;
-            return acc;
-          }, {} as {[key: string]: boolean});
-          setCollapsedWorkouts(initialCollapsedState);
-        } catch (error) {
-          console.error("Error fetching workouts:", error);
-          setError("Failed to fetch workouts. Please try again later.");
-        } finally {
-          setIsLoading(false);
-        }
+  const fetchWorkouts = useCallback(async () => {
+    if (user) {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const fetchedWorkouts = await getFriendsWorkouts(user.uid);
+        setWorkouts(fetchedWorkouts as Workout[]);
+        // Initialize all workouts as collapsed
+        const initialCollapsedState = fetchedWorkouts.reduce((acc, workout) => {
+          acc[workout.id] = true;
+          return acc;
+        }, {} as {[key: string]: boolean});
+        setCollapsedWorkouts(initialCollapsedState);
+      } catch (error) {
+        console.error("Error fetching workouts:", error);
+        setError("Failed to fetch workouts. Please try again later.");
+      } finally {
+        setIsLoading(false);
       }
-    };
+    }
+  }, [user]);
+
+  useEffect(() => {
     fetchWorkouts();
-  }, [user]); // Add user to the dependency array
+  }, [fetchWorkouts]);
 
   const toggleWorkoutCollapse = (workoutId: string) => {
     setCollapsedWorkouts(prev => ({
@@ -78,7 +79,7 @@ export default function SocialFeed({ onBack }: { onBack: () => void }) {
         <Card key={workout.id} className="overflow-hidden">
           <CardHeader className="bg-sky-100 py-2 sm:py-3 px-3 sm:px-4 flex flex-row items-center justify-between">
             <CardTitle className="text-base sm:text-lg font-semibold text-sky-800">
-              {workout.userEmail}'s Workout
+              {workout.userEmail}&apos;s Workout
             </CardTitle>
             <Button
               variant="outline"
