@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Check, Trash2, ChevronDown, ChevronUp, Search } from "lucide-react";
-import { addDocument } from '../lib/firebase/firebaseUtils';
+import { Plus, Check, Trash2, ChevronDown, ChevronUp, Search, BarChart2 } from "lucide-react";
+import { addDocument, getExerciseHistory } from '../lib/firebase/firebaseUtils';
 import { useAuth } from '../lib/hooks/useAuth';
 import WorkoutSummary from './WorkoutSummary';
 import { addWorkout } from '../lib/firebase/firebaseUtils';
@@ -22,6 +22,11 @@ type Exercise = {
   sets: Set[];
 };
 
+type ExerciseHistory = {
+  date: Date;
+  sets: { weight: number; reps: number }[];
+};
+
 export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void }) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,6 +41,9 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
   const [collapsedExercises, setCollapsedExercises] = useState<{[key: number]: boolean}>({});
   const [finalDuration, setFinalDuration] = useState(0);
   const [selectedExercise, setSelectedExercise] = useState('');
+  const [exerciseHistory, setExerciseHistory] = useState<{ [key: string]: ExerciseHistory[] }>({});
+  const [showHistoryFor, setShowHistoryFor] = useState<string | null>(null);
+  const [historyDisplayLimit, setHistoryDisplayLimit] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     setStartTime(Date.now());
@@ -214,6 +222,37 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
     setExercises(exercises.filter(exercise => exercise.id !== exerciseId));
   };
 
+  const fetchExerciseHistory = async (exerciseName: string) => {
+    if (user) {
+      try {
+        const history = await getExerciseHistory(user.uid, exerciseName);
+        setExerciseHistory(prev => ({ ...prev, [exerciseName]: history }));
+      } catch (error) {
+        console.error("Error fetching exercise history:", error);
+      }
+    }
+  };
+
+  const toggleHistoryView = (exerciseName: string) => {
+    if (showHistoryFor === exerciseName) {
+      setShowHistoryFor(null);
+    } else {
+      setShowHistoryFor(exerciseName);
+      if (!exerciseHistory[exerciseName]) {
+        fetchExerciseHistory(exerciseName);
+      }
+      // Initialize display limit for this exercise
+      setHistoryDisplayLimit(prev => ({ ...prev, [exerciseName]: 5 }));
+    }
+  };
+
+  const loadMoreHistory = (exerciseName: string) => {
+    setHistoryDisplayLimit(prev => ({
+      ...prev,
+      [exerciseName]: (prev[exerciseName] || 5) + 5
+    }));
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-4 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white rounded-lg shadow-md p-4">
@@ -282,7 +321,17 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
       {exercises.map(exercise => (
         <Card key={exercise.id} className="overflow-hidden">
           <CardHeader className="bg-sky-100 py-2 sm:py-3 px-3 sm:px-4 flex flex-row items-center justify-between">
-            <CardTitle className="text-base sm:text-lg font-semibold text-sky-800">{exercise.name}</CardTitle>
+            <div className="flex items-center">
+              <CardTitle className="text-base sm:text-lg font-semibold text-sky-800 mr-2">{exercise.name}</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleHistoryView(exercise.name)}
+                className="p-1 bg-sky-600 text-white hover:bg-sky-700"
+              >
+                <BarChart2 className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+            </div>
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
@@ -303,6 +352,41 @@ export default function WorkoutForm({ onWorkoutEnd }: { onWorkoutEnd: () => void
             </div>
           </CardHeader>
           <CardContent className={`p-3 sm:p-4 ${collapsedExercises[exercise.id] ? 'hidden' : ''}`}>
+            {showHistoryFor === exercise.name && (
+              <div className="mb-4 bg-gray-50 p-3 rounded-md">
+                <h4 className="font-semibold mb-2">Exercise History</h4>
+                {exerciseHistory[exercise.name] ? (
+                  <>
+                    {exerciseHistory[exercise.name]
+                      .slice(0, historyDisplayLimit[exercise.name] || 5)
+                      .map((entry, index) => (
+                        <div key={index} className="mb-2">
+                          <p className="text-sm font-medium">{entry.date.toLocaleDateString()}</p>
+                          <ul className="list-disc list-inside pl-2">
+                            {entry.sets.map((set, setIndex) => (
+                              <li key={setIndex} className="text-sm">
+                                {set.weight} lbs x {set.reps} reps
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    {exerciseHistory[exercise.name].length > (historyDisplayLimit[exercise.name] || 5) && (
+                      <Button
+                        onClick={() => loadMoreHistory(exercise.name)}
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 w-full"
+                      >
+                        Show More
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Loading history...</p>
+                )}
+              </div>
+            )}
             <div className="space-y-3 sm:space-y-4">
               {exercise.sets.map((set, index) => (
                 <div 

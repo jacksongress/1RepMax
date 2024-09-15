@@ -227,3 +227,34 @@ export const getCustomExercises = async (userId: string) => {
   }
 };
 
+// Add this new function
+export const getExerciseHistory = async (userId: string, exerciseName: string) => {
+  try {
+    const workoutsQuery = query(
+      collection(db, 'workouts'),
+      where('userId', '==', userId),
+      orderBy('timestamp', 'desc'),
+      limit(10) // Limit to last 10 workouts for performance
+    );
+
+    const workoutsSnapshot = await getDocs(workoutsQuery);
+    let exerciseHistory = [];
+
+    for (const doc of workoutsSnapshot.docs) {
+      const workoutData = doc.data();
+      const exerciseData = workoutData.exercises.find(e => e.name === exerciseName);
+      if (exerciseData) {
+        exerciseHistory.push({
+          date: workoutData.timestamp.toDate(),
+          sets: exerciseData.sets
+        });
+      }
+    }
+
+    return exerciseHistory;
+  } catch (error) {
+    console.error("Error getting exercise history:", error);
+    throw error;
+  }
+};
+
