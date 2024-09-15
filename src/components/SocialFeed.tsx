@@ -69,15 +69,15 @@ export default function SocialFeed({ onBack }: { onBack: () => void }) {
   if (error) return <div>{error}</div>;
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Social Feed</h2>
-        <Button onClick={onBack} variant="outline">Back</Button>
+    <div className="space-y-4 p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-0">Social Feed</h2>
+        <Button onClick={onBack} variant="outline" className="w-full sm:w-auto">Back</Button>
       </div>
       {workouts.map((workout) => (
         <Card key={workout.id} className="overflow-hidden">
-          <CardHeader className="bg-sky-100 py-3 px-4 flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-sky-800">
+          <CardHeader className="bg-sky-100 py-2 sm:py-3 px-3 sm:px-4 flex flex-row items-center justify-between">
+            <CardTitle className="text-base sm:text-lg font-semibold text-sky-800">
               {workout.userEmail}'s Workout
             </CardTitle>
             <Button
@@ -86,19 +86,19 @@ export default function SocialFeed({ onBack }: { onBack: () => void }) {
               onClick={() => toggleWorkoutCollapse(workout.id)}
               className="p-1"
             >
-              {collapsedWorkouts[workout.id] ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+              {collapsedWorkouts[workout.id] ? <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" /> : <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />}
             </Button>
           </CardHeader>
-          <CardContent className={`p-4 ${collapsedWorkouts[workout.id] ? 'hidden' : ''}`}>
-            <p>Duration: {formatTime(workout.duration)}</p>
-            <p>Date: {new Date(workout.timestamp).toLocaleString()}</p>
+          <CardContent className={`p-3 sm:p-4 ${collapsedWorkouts[workout.id] ? 'hidden' : ''}`}>
+            <p className="text-sm sm:text-base">Duration: {formatTime(workout.duration)}</p>
+            <p className="text-sm sm:text-base">Date: {new Date(workout.timestamp).toLocaleString()}</p>
             <div className="mt-2">
-              <h3 className="font-semibold">Exercises:</h3>
-              <ul className="list-disc list-inside">
+              <h3 className="font-semibold text-sm sm:text-base">Exercises:</h3>
+              <ul className="list-disc list-inside text-sm sm:text-base">
                 {workout.exercises.map((exercise, index) => (
                   <li key={index}>
                     {exercise.name}: {exercise.sets.length} sets
-                    <ul className="list-disc list-inside ml-4">
+                    <ul className="list-disc list-inside ml-4 text-xs sm:text-sm">
                       {exercise.sets.map((set, setIndex) => (
                         <li key={setIndex}>
                           Set {setIndex + 1}: {set.weight} lbs x {set.reps} reps
