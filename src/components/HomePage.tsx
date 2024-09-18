@@ -1,15 +1,42 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import WorkoutForm from './WorkoutForm';
 import WorkoutHistory from './WorkoutHistory';
 import SocialFeed from './SocialFeed';
 import ProfileButton from './ProfileButton';
 import StartWorkoutButton from './StartWorkoutButton';
 import TemplateSelection from './TemplateSelection';
-import { WorkoutTemplate } from '../lib/firebase/firebaseUtils';
+import { WorkoutTemplate, getWorkoutState, saveWorkoutState } from '../lib/firebase/firebaseUtils'; // Add saveWorkoutState here
+import { useAuth } from '../lib/hooks/useAuth';
+import ResumeWorkoutPrompt from './ResumeWorkoutPrompt'; // New component we'll create
 
 export default function HomePage() {
-  const [activeComponent, setActiveComponent] = useState<'home' | 'workout' | 'history' | 'social' | 'templateSelection'>('home');
+  const [activeComponent, setActiveComponent] = useState<'home' | 'workout' | 'history' | 'social' | 'templateSelection' | 'resumePrompt'>('home');
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null);
+  const [ongoingWorkout, setOngoingWorkout] = useState(null);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const checkOngoingWorkout = async () => {
+      console.log('Checking for ongoing workout, user:', user);
+      if (user) {
+        console.log('User ID:', user.uid);
+        const savedWorkout = await getWorkoutState(user.uid);
+        console.log('Retrieved ongoing workout:', savedWorkout);
+        if (savedWorkout) {
+          setOngoingWorkout(savedWorkout);
+          setActiveComponent('resumePrompt');
+        }
+      } else {
+        console.log('No user logged in');
+      }
+    };
+
+    checkOngoingWorkout();
+  }, [user]);
+
+  useEffect(() => {
+    console.log('User state changed:', user);
+  }, [user]);
 
   const handleStartWorkout = () => {
     setActiveComponent('templateSelection');
@@ -20,9 +47,23 @@ export default function HomePage() {
     setActiveComponent('workout');
   };
 
-  const handleWorkoutEnd = () => {
+  const handleWorkoutEnd = async () => {
     setActiveComponent('home');
     setSelectedTemplate(null);
+    if (user && ongoingWorkout) {
+      try {
+        await saveWorkoutState(user.uid, null);
+        console.log('Workout state cleared successfully');
+      } catch (error) {
+        console.error('Error clearing workout state:', error);
+        // You might want to show an alert to the user here
+      }
+    }
+    setOngoingWorkout(null);
+  };
+
+  const handleResumeWorkout = () => {
+    setActiveComponent('workout');
   };
 
   return (
@@ -69,6 +110,7 @@ export default function HomePage() {
             <WorkoutForm 
               onWorkoutEnd={handleWorkoutEnd} 
               initialTemplate={selectedTemplate}
+              initialWorkout={ongoingWorkout}
             />
           )}
           {activeComponent === 'history' && (
@@ -76,6 +118,13 @@ export default function HomePage() {
           )}
           {activeComponent === 'social' && (
             <SocialFeed onBack={() => setActiveComponent('home')} />
+          )}
+          {activeComponent === 'resumePrompt' && (
+            <ResumeWorkoutPrompt
+              onResume={handleResumeWorkout}
+              onEnd={handleWorkoutEnd}
+              workout={ongoingWorkout}
+            />
           )}
         </div>
       </main>

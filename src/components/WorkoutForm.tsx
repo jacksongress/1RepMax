@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Check, Trash2, ChevronDown, ChevronUp, Search, BarChart2 } from "lucide-react";
-import { addDocument, getExerciseHistory, addWorkout, addCustomExercise, getCustomExercises, saveWorkoutTemplate, WorkoutTemplate } from '../lib/firebase/firebaseUtils';
+import { addDocument, getExerciseHistory, addWorkout, addCustomExercise, getCustomExercises, saveWorkoutTemplate, WorkoutTemplate, saveWorkoutState, getWorkoutState } from '../lib/firebase/firebaseUtils';
 import { useAuth } from '../lib/hooks/useAuth';
 import WorkoutSummary from './WorkoutSummary';
 
@@ -28,9 +28,23 @@ type ExerciseHistory = {
 type WorkoutFormProps = {
   onWorkoutEnd: () => void;
   initialTemplate: WorkoutTemplate | null;
+  initialWorkout: {
+    exercises: Array<{
+      id: number;
+      name: string;
+      sets: Array<{
+        id: number;
+        weight: string;
+        reps: string;
+        completed: boolean;
+      }>;
+    }>;
+    startTime: number;
+    elapsedTime: number;
+  } | null;
 };
 
-export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFormProps) {
+export default function WorkoutForm({ onWorkoutEnd, initialTemplate, initialWorkout }: WorkoutFormProps) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -54,11 +68,35 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
     "Squat", "Bench Press", "Deadlift", "Overhead Press", "Barbell Row", "Pull-up"
   ], []);
 
+  const saveWorkout = useCallback(() => {
+    if (user && startTime) {
+      const workoutState = {
+        exercises: exercises,
+        startTime,
+        elapsedTime,
+      };
+      console.log('Saving workout state:', workoutState);
+      saveWorkoutState(user.uid, workoutState);
+    }
+  }, [user, exercises, startTime, elapsedTime]);
+
   useEffect(() => {
-    if (initialTemplate) {
+    console.log('WorkoutForm mounted, initialWorkout:', initialWorkout);
+    if (initialWorkout) {
+      console.log('Resuming workout with:', initialWorkout);
+      setExercises(initialWorkout.exercises.map(exercise => ({
+        ...exercise,
+        sets: exercise.sets.map(set => ({
+          ...set,
+          completed: set.completed
+        }))
+      })));
+      setStartTime(initialWorkout.startTime);
+      setElapsedTime(initialWorkout.elapsedTime);
+    } else if (initialTemplate) {
       setExercises(initialTemplate.exercises.map(name => ({ id: Date.now() + Math.random(), name, sets: [] })));
     }
-  }, [initialTemplate]);
+  }, [initialTemplate, initialWorkout]);
 
   useEffect(() => {
     const now = Date.now();
@@ -127,7 +165,13 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
   const addExercise = async () => {
     console.log("Adding exercise:", selectedExercise);
     if (selectedExercise.trim()) {
-      setExercises(prev => [...prev, { id: Date.now(), name: selectedExercise, sets: [] }]);
+      setExercises(prevExercises => {
+        const newExercises = [...prevExercises, { id: Date.now(), name: selectedExercise, sets: [] }];
+        if (user && startTime) {
+          saveWorkoutState(user.uid, { exercises: newExercises, startTime, elapsedTime });
+        }
+        return newExercises;
+      });
       
       if (!defaultExercises.includes(selectedExercise) && !customExercises.includes(selectedExercise)) {
         setCustomExercises(prev => [...prev, selectedExercise]);
@@ -148,39 +192,65 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
   };
 
   const addSet = (exerciseId: number) => {
-    setExercises(exercises.map(exercise => 
-      exercise.id === exerciseId 
-        ? { ...exercise, sets: [...exercise.sets, { id: Date.now(), weight: '', reps: '', completed: false }] }
-        : exercise
-    ));
+    setExercises(prevExercises => {
+      const newExercises = prevExercises.map(exercise => 
+        exercise.id === exerciseId 
+          ? { ...exercise, sets: [...exercise.sets, { id: Date.now(), weight: '', reps: '', completed: false }] }
+          : exercise
+      );
+      if (user && startTime) {
+        saveWorkoutState(user.uid, { exercises: newExercises, startTime, elapsedTime });
+      }
+      return newExercises;
+    });
   };
 
   const updateSet = (exerciseId: number, setId: number, field: 'weight' | 'reps', value: string) => {
-    setExercises(exercises.map(exercise => 
-      exercise.id === exerciseId 
-        ? { ...exercise, sets: exercise.sets.map(set => 
-            set.id === setId ? { ...set, [field]: value } : set
-          )}
-        : exercise
-    ));
+    setExercises(prevExercises => {
+      const newExercises = prevExercises.map(exercise => 
+        exercise.id === exerciseId 
+          ? { ...exercise, sets: exercise.sets.map(set => 
+              set.id === setId ? { ...set, [field]: value } : set
+            )}
+          : exercise
+      );
+      // Call saveWorkout with the new state
+      if (user && startTime) {
+        saveWorkoutState(user.uid, { exercises: newExercises, startTime, elapsedTime });
+      }
+      return newExercises;
+    });
   };
 
   const toggleSetCompletion = (exerciseId: number, setId: number) => {
-    setExercises(exercises.map(exercise => 
-      exercise.id === exerciseId 
-        ? { ...exercise, sets: exercise.sets.map(set => 
-            set.id === setId ? { ...set, completed: !set.completed } : set
-          )}
-        : exercise
-    ));
+    setExercises(prevExercises => {
+      const newExercises = prevExercises.map(exercise => 
+        exercise.id === exerciseId 
+          ? { ...exercise, sets: exercise.sets.map(set => 
+              set.id === setId ? { ...set, completed: !set.completed } : set
+            )}
+          : exercise
+      );
+      // Call saveWorkout with the new state
+      if (user && startTime) {
+        saveWorkoutState(user.uid, { exercises: newExercises, startTime, elapsedTime });
+      }
+      return newExercises;
+    });
   };
 
   const deleteSet = (exerciseId: number, setId: number) => {
-    setExercises(exercises.map(exercise => 
-      exercise.id === exerciseId 
-        ? { ...exercise, sets: exercise.sets.filter(set => set.id !== setId) }
-        : exercise
-    ));
+    setExercises(prevExercises => {
+      const newExercises = prevExercises.map(exercise => 
+        exercise.id === exerciseId 
+          ? { ...exercise, sets: exercise.sets.filter(set => set.id !== setId) }
+          : exercise
+      );
+      if (user && startTime) {
+        saveWorkoutState(user.uid, { exercises: newExercises, startTime, elapsedTime });
+      }
+      return newExercises;
+    });
   };
 
   const handleEndWorkout = useCallback(async () => {
@@ -203,6 +273,9 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
         console.log('Workout posted successfully with ID:', workoutId);
         setShowSummary(true);
         setStartTime(null);
+
+        // Clear the saved workout state
+        await saveWorkoutState(user.uid, null);
 
         if (!initialTemplate) {
           setShowSaveTemplateModal(true);
@@ -246,7 +319,13 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
   };
 
   const deleteExercise = (exerciseId: number) => {
-    setExercises(prevExercises => prevExercises.filter(exercise => exercise.id !== exerciseId));
+    setExercises(prevExercises => {
+      const newExercises = prevExercises.filter(exercise => exercise.id !== exerciseId);
+      if (user && startTime) {
+        saveWorkoutState(user.uid, { exercises: newExercises, startTime, elapsedTime });
+      }
+      return newExercises;
+    });
   };
 
   const fetchExerciseHistory = async (exerciseName: string) => {
@@ -278,6 +357,21 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate }: WorkoutFo
       [exerciseName]: (prev[exerciseName] || 5) + 5
     }));
   };
+
+  useEffect(() => {
+    const loadSavedWorkout = async () => {
+      if (user) {
+        const savedWorkout = await getWorkoutState(user.uid);
+        if (savedWorkout) {
+          setExercises(savedWorkout.exercises);
+          setStartTime(savedWorkout.startTime);
+          setElapsedTime(savedWorkout.elapsedTime);
+        }
+      }
+    };
+
+    loadSavedWorkout();
+  }, [user]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 p-4 sm:p-6">

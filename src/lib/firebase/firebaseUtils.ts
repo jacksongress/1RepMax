@@ -25,6 +25,7 @@ import {
 } from "firebase/firestore";
 // import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAuth } from "firebase/auth";
+import { runTransaction } from "firebase/firestore";
 
 // Auth functions
 export const logoutUser = () => signOut(auth);
@@ -181,13 +182,28 @@ export const getFriends = async (userId: string) => {
   }
 };
 
-export const addFriend = async (userId: string, friendEmail: string) => {
+export const addFriend = async (currentUserId: string, friendUserId: string) => {
   try {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      friends: arrayUnion(friendEmail)
+    const userRef = doc(db, 'users', currentUserId);
+    const friendRef = doc(db, 'users', friendUserId);
+
+    await runTransaction(db, async (transaction) => {
+      const userDoc = await transaction.get(userRef);
+      const friendDoc = await transaction.get(friendRef);
+
+      if (!userDoc.exists() || !friendDoc.exists()) {
+        throw new Error("User does not exist!");
+      }
+
+      transaction.update(userRef, {
+        friends: arrayUnion(friendUserId)
+      });
+      transaction.update(friendRef, {
+        friends: arrayUnion(currentUserId)
+      });
     });
-    console.log(`Friend ${friendEmail} added successfully for user ${userId}`);
+
+    console.log(`Friend connection established between ${currentUserId} and ${friendUserId}`);
   } catch (error) {
     console.error("Error adding friend:", error);
     throw error;
@@ -302,5 +318,25 @@ export const deleteWorkoutTemplate = async (userId: string, templateId: string) 
     console.error("Error deleting workout template:", error);
     throw error;
   }
+};
+
+export const saveWorkoutState = async (userId: string, workoutState: any | null) => {
+  console.log('Saving workout state for user:', userId);
+  console.log('Workout state to save:', workoutState);
+  const userRef = doc(db, 'users', userId);
+  try {
+    await updateDoc(userRef, { ongoingWorkout: workoutState });
+    console.log('Workout state saved successfully');
+  } catch (error) {
+    console.error('Error saving workout state:', error);
+  }
+};
+
+export const getWorkoutState = async (userId: string) => {
+  console.log('Getting workout state for user:', userId);
+  const userDoc = await getDoc(doc(db, 'users', userId));
+  const workoutState = userDoc.data()?.ongoingWorkout || null;
+  console.log('Retrieved workout state:', workoutState);
+  return workoutState;
 };
 

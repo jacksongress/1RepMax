@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection
+    match /users/{userId} {
+      // Allow users to read and write their own documents
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Allow updating the 'friends' field to add the authenticated user's email
+      allow update: if request.auth != null &&
+        (
+          request.auth.uid == userId || // User updating their own document
+          (
+            request.resource.data.keys().hasOnly(['friends']) && // Only 'friends' field is being updated
+            request.resource.data.friends.size() == resource.data.friends.size() + 1 && // Adding exactly one friend
+            request.auth.token.email.toLowerCase() in request.resource.data.friends && // Authenticated user's email is being added
+            !resource.data.friends.hasAny([request.auth.token.email.toLowerCase()]) // Ensure it's not already a friend
+          )
+        );
+
+      // Templates subcollection
+      match /templates/{templateId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Workouts collection
+    match /workouts/{workoutId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // FriendRequests collection
+    match /friendRequests/{requestId} {
+      allow create: if request.auth != null;
+
+      allow read: if request.auth != null && 
+        (request.auth.token.email.toLowerCase() == resource.data.from.toLowerCase() || 
+         request.auth.token.email.toLowerCase() == resource.data.to.toLowerCase());
+
+      allow update, delete: if request.auth != null && 
+        (request.auth.token.email.toLowerCase() == resource.data.from.toLowerCase() || 
+         request.auth.token.email.toLowerCase() == resource.data.to.toLowerCase());
+    }
+  }
+}
