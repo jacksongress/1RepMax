@@ -67,22 +67,22 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-sky-50 flex flex-col">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-sky-600">1 Rep Max</h1>
+    <div className={`h-screen bg-sky-50 flex flex-col ${activeComponent === 'home' ? 'overflow-hidden' : ''}`}>
+      <header className="bg-white shadow-sm flex-shrink-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+          <h1 className="text-xl sm:text-2xl font-bold text-sky-600">1 Rep Max</h1>
           <ProfileButton />
         </div>
       </header>
-      <main className="flex-grow flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
+      <main className={`flex-grow flex items-start justify-center p-4 ${activeComponent === 'home' ? 'overflow-hidden' : 'overflow-auto'}`}>
+        <div className={`w-full max-w-md ${activeComponent === 'home' ? 'mt-8 sm:mt-12' : ''}`}>
           {activeComponent === 'home' && (
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="p-6">
-                <h2 className="text-2xl font-bold text-center text-sky-800 mb-6">
+              <div className="p-4 sm:p-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-center text-sky-800 mb-4">
                   Welcome to 1 Rep Max
                 </h2>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <StartWorkoutButton onStart={handleStartWorkout} />
                   <button
                     onClick={() => setActiveComponent('history')}

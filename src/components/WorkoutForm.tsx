@@ -294,13 +294,23 @@ export default function WorkoutForm({ onWorkoutEnd, initialTemplate, initialWork
 
   const handleSaveTemplate = async () => {
     if (user && templateName.trim()) {
-      const template: WorkoutTemplate = {
-        name: templateName,
-        exercises: exercises.map(e => e.name)
-      };
-      await saveWorkoutTemplate(user.uid, template);
-      setShowSaveTemplateModal(false);
-      onWorkoutEnd();
+      try {
+        const template: WorkoutTemplate = {
+          name: templateName,
+          exercises: exercises.map(e => e.name)
+        };
+        await saveWorkoutTemplate(user.uid, template);
+        setShowSaveTemplateModal(false);
+        onWorkoutEnd();
+        alert("Workout template saved successfully!");
+      } catch (error) {
+        console.error("Error saving workout template:", error);
+        if (error instanceof Error) {
+          alert(`Failed to save template: ${error.message}`);
+        } else {
+          alert("Failed to save template. Please try again.");
+        }
+      }
     }
   };
 

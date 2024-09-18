@@ -336,25 +336,36 @@ export type WorkoutTemplate = {
 
 export const saveWorkoutTemplate = async (userId: string, template: WorkoutTemplate) => {
   try {
-    const templateRef = await addDoc(collection(db, 'users', userId, 'templates'), template);
+    const userTemplatesRef = collection(db, 'users', userId, 'templates');
+    const templateRef = await addDoc(userTemplatesRef, template);
     console.log(`Template ${template.name} saved successfully with ID: ${templateRef.id}`);
     return templateRef.id;
   } catch (error) {
     console.error("Error saving workout template:", error);
-    throw error;
+    if (error instanceof Error) {
+      throw new Error(`Failed to save template: ${error.message}`);
+    } else {
+      throw new Error('An unknown error occurred while saving the template');
+    }
   }
 };
 
 export const getWorkoutTemplates = async (userId: string) => {
   try {
+    console.log(`Fetching templates for user: ${userId}`);
     const templatesSnapshot = await getDocs(collection(db, 'users', userId, 'templates'));
+    console.log(`Fetched ${templatesSnapshot.docs.length} templates`);
     return templatesSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     } as WorkoutTemplate));
   } catch (error) {
     console.error("Error getting workout templates:", error);
-    throw error;
+    if (error instanceof Error) {
+      throw new Error(`Failed to get templates: ${error.message}`);
+    } else {
+      throw new Error('An unknown error occurred while fetching templates');
+    }
   }
 };
 

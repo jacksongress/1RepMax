@@ -36,7 +36,7 @@ export default function SocialTab({ onBack }: SocialTabProps) {
     const loadFriendsAndWorkouts = async () => {
       if (user) {
         const friendList = await getFriends(user.uid);
-        setFriends(friendList);
+        setFriends(friendList.map(email => email.toLowerCase()));
         const friendsWorkouts = await getFriendsWorkouts(user.uid);
         setWorkouts(friendsWorkouts as Workout[]);
       }
@@ -49,7 +49,7 @@ export default function SocialTab({ onBack }: SocialTabProps) {
       try {
         await addFriend(user.uid, newFriendEmail.toLowerCase());
         const updatedFriends = await getFriends(user.uid);
-        setFriends(updatedFriends);
+        setFriends(updatedFriends.map(email => email.toLowerCase()));
         setNewFriendEmail('');
         alert("Friend added successfully!");
       } catch (error) {
@@ -68,7 +68,7 @@ export default function SocialTab({ onBack }: SocialTabProps) {
       try {
         await removeFriend(user.uid, friendEmail.toLowerCase());
         const updatedFriends = await getFriends(user.uid);
-        setFriends(updatedFriends);
+        setFriends(updatedFriends.map(email => email.toLowerCase()));
         alert("Friend removed successfully!");
       } catch (error) {
         console.error("Error removing friend:", error);
@@ -107,7 +107,7 @@ export default function SocialTab({ onBack }: SocialTabProps) {
               <div key={index} className="flex justify-between items-center mb-1">
                 <span>{friend.toLowerCase()}</span>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => handleRemoveFriend(friend)}
                 >
@@ -122,7 +122,7 @@ export default function SocialTab({ onBack }: SocialTabProps) {
                 <CardContent>
                   <div className="flex items-center space-x-2 mb-2">
                     <div className="font-semibold">
-                      {workout.userEmail === user?.email ? 'You' : workout.userEmail}
+                      {workout.userEmail === user?.email ? 'You' : workout.userEmail.toLowerCase()}
                     </div>
                     <div className="text-sm text-gray-500">
                       {new Date(workout.timestamp).toLocaleString()}

@@ -43,6 +43,28 @@ export default function TemplateSelection({ onTemplateSelect, onBack }: Template
     }
   };
 
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      if (user) {
+        try {
+          console.log(`Fetching templates for user: ${user.uid}`);
+          const fetchedTemplates = await getWorkoutTemplates(user.uid);
+          console.log(`Fetched templates:`, fetchedTemplates);
+          setTemplates(fetchedTemplates);
+        } catch (error) {
+          console.error("Error fetching templates:", error);
+          if (error instanceof Error) {
+            alert(`Failed to fetch templates: ${error.message}`);
+          } else {
+            alert("Failed to fetch templates. Please try again.");
+          }
+        }
+      }
+    };
+
+    fetchTemplates();
+  }, [user]);
+
   return (
     <div className="max-w-4xl mx-auto space-y-4 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
