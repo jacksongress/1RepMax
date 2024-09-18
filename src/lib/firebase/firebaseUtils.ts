@@ -64,6 +64,7 @@ export const createUserDocument = async (userId: string, additionalData?: { emai
       await setDoc(userRef, {
         email,
         createdAt,
+        friends: [],
         ...additionalData
       });
       console.log("User document created successfully");
@@ -182,24 +183,45 @@ export const getFriends = async (userId: string) => {
   }
 };
 
-export const addFriend = async (currentUserId: string, friendUserId: string) => {
+export const addFriend = async (currentUserId: string, friendEmail: string) => {
   try {
-    const userRef = doc(db, 'users', currentUserId);
-    const friendRef = doc(db, 'users', friendUserId);
+    const usersRef = collection(db, 'users');
+    const friendQuery = query(usersRef, where('email', '==', friendEmail.toLowerCase()));
+    const friendSnapshot = await getDocs(friendQuery);
+
+    if (friendSnapshot.empty) {
+      throw new Error('User not found');
+    }
+
+    const friendDoc = friendSnapshot.docs[0];
+    const friendUserId = friendDoc.id;
+
+    if (currentUserId === friendUserId) {
+      throw new Error('You cannot add yourself as a friend');
+    }
+
+    const currentUserRef = doc(db, 'users', currentUserId);
+    const friendUserRef = doc(db, 'users', friendUserId);
 
     await runTransaction(db, async (transaction) => {
-      const userDoc = await transaction.get(userRef);
-      const friendDoc = await transaction.get(friendRef);
+      const currentUserDoc = await transaction.get(currentUserRef);
+      const friendUserDoc = await transaction.get(friendUserRef);
 
-      if (!userDoc.exists() || !friendDoc.exists()) {
-        throw new Error("User does not exist!");
+      if (!currentUserDoc.exists() || !friendUserDoc.exists()) {
+        throw new Error('One of the user documents does not exist');
       }
 
-      transaction.update(userRef, {
-        friends: arrayUnion(friendUserId)
+      const currentUserEmail = currentUserDoc.data()?.email.toLowerCase();
+      const friendUserEmail = friendUserDoc.data()?.email.toLowerCase();
+
+      // Add friend to current user's friends list
+      transaction.update(currentUserRef, {
+        friends: arrayUnion(friendUserEmail)
       });
-      transaction.update(friendRef, {
-        friends: arrayUnion(currentUserId)
+
+      // Add current user to friend's friends list
+      transaction.update(friendUserRef, {
+        friends: arrayUnion(currentUserEmail)
       });
     });
 
@@ -213,9 +235,36 @@ export const addFriend = async (currentUserId: string, friendUserId: string) => 
 export const removeFriend = async (userId: string, friendEmail: string) => {
   try {
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      friends: arrayRemove(friendEmail)
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      throw new Error('User document not found');
+    }
+
+    const userEmail = userDoc.data()?.email.toLowerCase();
+
+    const friendQuery = query(collection(db, 'users'), where('email', '==', friendEmail.toLowerCase()));
+    const friendSnapshot = await getDocs(friendQuery);
+
+    if (friendSnapshot.empty) {
+      throw new Error('Friend user not found');
+    }
+
+    const friendDoc = friendSnapshot.docs[0];
+    const friendRef = doc(db, 'users', friendDoc.id);
+
+    await runTransaction(db, async (transaction) => {
+      // Remove friend from user's friends list
+      transaction.update(userRef, {
+        friends: arrayRemove(friendEmail.toLowerCase())
+      });
+
+      // Remove user from friend's friends list
+      transaction.update(friendRef, {
+        friends: arrayRemove(userEmail)
+      });
     });
+
     console.log(`Friend ${friendEmail} removed successfully for user ${userId}`);
   } catch (error) {
     console.error("Error removing friend:", error);
